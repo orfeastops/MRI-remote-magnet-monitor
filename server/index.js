@@ -26,6 +26,12 @@ app.use(session({
   cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 } // 7 days
 }));
 
+// --- PWA assets (public, no auth) ---
+const pwaFiles = ['/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/favicon.ico'];
+pwaFiles.forEach(f => {
+  app.get(f, (req, res) => res.sendFile(path.join(__dirname, '../webapp', f)));
+});
+
 // --- Login / Logout (no auth required) ---
 app.get('/login', (req, res) => {
   if (req.session.authenticated) return res.redirect('/');
