@@ -1,4 +1,6 @@
 require('dotenv').config();
+process.on('uncaughtException', (err) => console.error('[UNCAUGHT]', err.message));
+process.on('unhandledRejection', (err) => console.error('[UNHANDLED]', err));
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
@@ -14,7 +16,7 @@ const REMEMBER_ME_DAYS = 30;
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server, skipUTF8Validation: true });
 
 app.use(cors());
 app.use(express.json());
@@ -85,9 +87,13 @@ wss.on('connection', (ws) => {
   let isESP = false;
   let isBrowser = false;
 
-  ws.on('message', (raw) => {
+  ws.on('message', (rawBuf) => {
     let msg;
-    try { msg = JSON.parse(raw); } catch { return; }
+    try {
+      // Decode as Latin-1 to preserve all byte values (MRI uses CP437/Latin-1 box chars)
+      const raw = Buffer.isBuffer(rawBuf) ? rawBuf.toString('latin1') : rawBuf;
+      msg = JSON.parse(raw);
+    } catch { return; }
 
     if (msg.type === 'esp_hello') {
       isESP = true;
@@ -106,6 +112,7 @@ wss.on('connection', (ws) => {
     }
 
     if (msg.type === 'serial_data' && deviceMac) {
+      console.log(`[RAW] ${JSON.stringify(msg.data)}`);
       db.saveData(deviceMac, msg.data);
       const dev = devices.get(deviceMac);
       if (dev) {

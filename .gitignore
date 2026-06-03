@@ -1,6 +1,17 @@
 node_modules/
-server/database.sqlite
-server/package-lock.json
-server/.env
 *.log
 .DS_Store
+
+# all .env files
+**/.env
+
+# databases
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# lock files
+package-lock.json
+server/package-lock.json
+proxy/package-lock.json
+server-v2/package-lock.json

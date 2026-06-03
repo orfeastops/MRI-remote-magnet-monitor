@@ -13,7 +13,7 @@ function initTerminal() {
     theme: { background: '#000000', foreground: '#00ff88', cursor: '#00ff88' },
     fontFamily: '"Courier New", monospace',
     fontSize: 13,
-    convertEol: false,
+    convertEol: true,
     cursorBlink: true,
     scrollback: 2000,
   });
@@ -40,8 +40,8 @@ function connect() {
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'serial_data' && msg.mac === currentMac) {
-      if (term) term.write(msg.data + '\r\n');
-      rawBuffer += msg.data + '\n';
+      if (term) term.write(msg.data);
+      rawBuffer += msg.data;
       updateDashboard(rawBuffer);
     }
     if (msg.type === 'new_device') {
@@ -141,8 +141,8 @@ function openMagnet(mac, name, online) {
     initTerminal();
     fetch(`/api/history/${mac}`).then(r => r.json()).then(rows => {
       rows.reverse().forEach(r => {
-        if (term) term.write(r.raw + '\r\n');
-        rawBuffer += r.raw + '\n';
+        if (term) term.write(r.raw);
+        rawBuffer += r.raw;
       });
       if (rawBuffer) updateDashboard(rawBuffer);
     });
@@ -242,35 +242,54 @@ document.getElementById('back-btn').onclick = () => {
 function updateDashboard(raw) {
   const grid = document.getElementById('parsed-grid');
   const faultsEl = document.getElementById('faults-box');
+
+  // Parse VT100 cursor position sequences: ESC[row;colH (or [row;colH if ESC stripped)
+  // Last occurrence of each position wins = most recent screen state
+  const screen = {};
+  const posRe = /(?:\x1b)?\[(\d+);(\d+)H([^\[\x1b]*)/g;
+  let m;
+  while ((m = posRe.exec(raw)) !== null) {
+    const val = m[3].replace(/\x1b?\[\d*[a-zA-Z]/g, '').trim();
+    if (val) screen[`${m[1]}:${m[2]}`] = val;
+  }
+
+  // Field current is a label+value at position 3:16
+  const fcRaw = screen['3:16'] || '';
+  const fcVal = (fcRaw.match(/([\d.]+A)/) || [])[1] || '';
+
   const fields = [
-    { label: 'He Level',      regex: /Values\s+(\w+)/ },
-    { label: 'Compressor',    regex: /Compressor:\s+(\w+)/ },
-    { label: 'Cold Head',     regex: /Cold Head Sensor1:([\d.]+K)/ },
-    { label: 'Shield S1',     regex: /Shield\s+Sensor1:([\d.]+K)/ },
-    { label: 'Shield S2',     regex: /Shield\s+Sensor1:[\d.]+K\s+Sensor2:([\d.]+K)/ },
-    { label: 'Turret S1',     regex: /Turret\s+Sensor1:([\d.]+K)/ },
-    { label: 'Mag psiA',      regex: /Mag psiA\s+:([\d.]+)/ },
-    { label: 'Avg Power',     regex: /Average Power\s+:([\d.]+W)/ },
-    { label: 'Self Test',     regex: /Self Test:\s+(\w+)/ },
-    { label: 'Field Current', regex: /Field current\s+([\d.]+A)/ },
-    { label: 'Battery Volts', regex: /Volts\s+([\d.]+)/ },
-    { label: 'He Status',     regex: /He:\s+(\w+)/ },
+    { label: 'He Level 1',    val: screen['7:41']  },
+    { label: 'He Level 2',    val: screen['7:48']  },
+    { label: 'He Status',     val: screen['8:6']   },
+    { label: 'Field Current', val: fcVal           },
+    { label: 'Self Test',     val: screen['9:37']  },
+    { label: 'Battery',       val: screen['10:11'] },
+    { label: 'Volts',         val: screen['11:11'] },
+    { label: 'Press HTR',     val: screen['11:41'] },
+    { label: 'Compressor',    val: screen['10:37'] },
+    { label: 'Cold Head',     val: screen['13:20'] },
+    { label: 'Shield S1',     val: screen['14:20'] },
+    { label: 'Shield S2',     val: screen['14:36'] },
+    { label: 'Turret S1',     val: screen['15:20'] },
+    { label: 'Turret S2',     val: screen['15:36'] },
+    { label: 'Mag psiA',      val: screen['20:20'] },
+    { label: 'Avg Power',     val: screen['21:20'] },
+    { label: 'ERDU',          val: ((screen['22:21'] || '').match(/([\d.]+)/) || [])[1] || '' },
   ];
-  const cards = fields.map(f => {
-    const m = raw.match(f.regex);
-    if (!m) return '';
-    const v = m[1];
+
+  const cards = fields.filter(f => f.val).map(f => {
+    const v = f.val;
     const isAlarm = v.includes('ALARM') || v.includes('FAULT') || v === 'FAIL' || v === '00.00';
     const isWarn  = v === 'OFF' || v.includes('WARN') || v === 'LOW';
     return `<div class="pcard"><div class="plabel">${f.label}</div><div class="pvalue ${isAlarm ? 'alarm' : isWarn ? 'warn' : ''}">${v}</div></div>`;
   }).join('');
   if (cards) grid.innerHTML = cards;
+
   const faults = [];
   if (raw.includes('LOAD ALARM')) faults.push('Battery: Load Alarm');
   if (raw.includes('TOO FEW BUTTONS')) faults.push('ERDU: Too Few Buttons');
   if (raw.includes('Alarmbox Communications Fault')) faults.push('Alarmbox Communications Fault');
-  if (raw.match(/Sensor2:[\d.]+K\s+WARN/)) faults.push('Shield Sensor2: Warning');
-  if (raw.includes('Compressor: OFF')) faults.push('Compressor είναι OFF');
+  if ((screen['10:37'] || '') === 'OFF') faults.push('Compressor είναι OFF');
   faultsEl.innerHTML = faults.length > 0
     ? faults.map(f => `<div class="fault-item">⚠️ ${f}</div>`).join('')
     : '<div class="no-faults">✅ Δεν υπάρχουν faults</div>';
