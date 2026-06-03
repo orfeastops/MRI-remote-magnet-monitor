@@ -1,0 +1,59 @@
+.wrap    { padding: 1rem; overflow-y: auto; height: calc(100dvh - 170px); }
+.section { margin-bottom: 1.5rem; }
+.section h3 { font-size: .9rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0 0 .75rem; }
+.muted   { color: var(--muted); font-size: .85rem; }
+
+.gpioRow {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .6rem .85rem;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  margin-bottom: .4rem;
+  font-size: .88rem;
+}
+.normal   { background: rgba(34,197,94,.08); border-color: rgba(34,197,94,.25); }
+.alarm    { background: rgba(251,191,36,.1); border-color: rgba(251,191,36,.35); }
+.critical { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.45); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+.dot        { font-size: .6rem; }
+.gpioLabel  { flex: 1; font-weight: 500; }
+.gpioVal    { font-weight: 700; font-size: .8rem; text-transform: uppercase; }
+.normal .gpioVal   { color: #4ade80; }
+.alarm  .gpioVal   { color: #fbbf24; }
+.critical .gpioVal { color: #f87171; }
+
+.alertRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .75rem .9rem;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  margin-bottom: .5rem;
+  background: var(--surface);
+}
+.open     { border-left: 3px solid #f87171; }
+.resolved { opacity: .55; }
+
+.alertInfo   { display: flex; flex-direction: column; gap: .2rem; flex: 1; }
+.alertType   { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #f87171; }
+.resolved .alertType { color: var(--muted); }
+.alertMsg    { font-size: .88rem; }
+.alertTime   { font-size: .75rem; color: var(--muted); }
+
+.ackBtn {
+  white-space: nowrap;
+  background: rgba(239,68,68,.15);
+  border: 1px solid rgba(239,68,68,.4);
+  color: #f87171;
+  padding: .3rem .7rem;
+  border-radius: 6px;
+  font-size: .78rem;
+  cursor: pointer;
+}
+.ackBtn:hover { background: rgba(239,68,68,.25); }
+.resolvedBadge { font-size: .75rem; color: #4ade80; white-space: nowrap; }

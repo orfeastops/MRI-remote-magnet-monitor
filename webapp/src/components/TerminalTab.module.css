@@ -1,0 +1,7 @@
+.term {
+  width: 100%;
+  height: calc(100dvh - 170px); /* nav + gpio bar + tabs */
+  background: #0a0e17;
+  padding: .5rem;
+  box-sizing: border-box;
+}

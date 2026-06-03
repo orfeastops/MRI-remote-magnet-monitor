@@ -1,0 +1,57 @@
+.shell { display: flex; flex-direction: column; height: 100dvh; }
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1rem;
+  height: 48px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.brand { font-weight: 800; color: var(--accent); font-size: .95rem; letter-spacing: -.01em; }
+
+.links { display: flex; gap: .25rem; flex: 1; }
+.links a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: .35rem .7rem;
+  border-radius: 6px;
+  font-size: .85rem;
+  transition: color .15s, background .15s;
+}
+.links a:hover { color: var(--fg); background: rgba(255,255,255,.06); }
+.active { color: var(--fg) !important; background: rgba(255,255,255,.09) !important; font-weight: 600; }
+
+.actions { display: flex; align-items: center; gap: .5rem; }
+
+.bellBtn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .25rem .5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1.4;
+  opacity: .5;
+}
+.bellBtn:hover { opacity: .9; }
+.bellOn        { opacity: 1; border-color: var(--accent); }
+
+.logout {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: .3rem .65rem;
+  border-radius: 6px;
+  font-size: .78rem;
+  cursor: pointer;
+}
+.logout:hover { border-color: #f87171; color: #f87171; }
+
+.main { flex: 1; overflow: hidden; }

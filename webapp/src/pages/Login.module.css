@@ -1,0 +1,36 @@
+.wrap {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 32px rgba(0,0,0,.4);
+}
+
+.logo {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.logoIcon { font-size: 2.5rem; display: block; margin-bottom: .5rem; }
+.logo h1  { font-size: 1.4rem; margin: 0; color: var(--accent); }
+.logo p   { font-size: .85rem; color: var(--muted); margin: .25rem 0 0; }
+
+.error {
+  background: rgba(239,68,68,.15);
+  border: 1px solid rgba(239,68,68,.4);
+  color: #f87171;
+  border-radius: 6px;
+  padding: .5rem .75rem;
+  font-size: .85rem;
+  margin-bottom: .75rem;
+}

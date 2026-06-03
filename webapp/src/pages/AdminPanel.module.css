@@ -1,0 +1,40 @@
+.wrap    { padding: 1.5rem; max-width: 900px; margin: 0 auto; }
+.heading { margin: 0 0 1.25rem; }
+
+.tabs { display: flex; gap: .5rem; margin-bottom: 1.25rem; }
+.tab  { padding: .45rem .9rem; border-radius: 7px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: pointer; }
+.tab:hover   { border-color: var(--accent); color: var(--fg); }
+.activeTab   { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+
+.section    { }
+.sectionHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; color: var(--muted); font-size: .85rem; }
+.addBtn { background: var(--accent); border: none; color: #000; font-weight: 600; padding: .4rem .85rem; border-radius: 6px; cursor: pointer; font-size: .85rem; }
+.addBtn:hover { filter: brightness(1.15); }
+
+.table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.table th { text-align: left; color: var(--muted); font-weight: 500; padding: .4rem .75rem; border-bottom: 1px solid var(--border); font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+.table td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); }
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: rgba(255,255,255,.03); }
+
+.roleTag  { font-size: .72rem; background: rgba(100,116,139,.15); color: var(--muted); padding: .15rem .4rem; border-radius: 4px; }
+.admin    { background: rgba(56,189,248,.15); color: #38bdf8; }
+.online   { color: #4ade80; font-size: .82rem; }
+.offline  { color: var(--muted); font-size: .82rem; }
+.iconBtn  { background: none; border: none; color: var(--muted); cursor: pointer; padding: .2rem .35rem; border-radius: 4px; font-size: .85rem; margin-right: .2rem; }
+.iconBtn:hover { color: var(--fg); background: rgba(255,255,255,.07); }
+
+/* Modal */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 100; }
+.modal   { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 420px; box-shadow: 0 8px 40px rgba(0,0,0,.5); }
+.modalHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+.modalHeader h3 { margin: 0; font-size: 1rem; }
+.closeBtn { background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; padding: .2rem; }
+
+.err     { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.35); color: #f87171; border-radius: 6px; padding: .5rem .75rem; font-size: .82rem; margin-bottom: .75rem; }
+.saveBtn { width: 100%; background: var(--accent); border: none; color: #000; font-weight: 700; padding: .65rem; border-radius: 7px; cursor: pointer; font-size: .9rem; margin-top: .5rem; }
+.saveBtn:hover { filter: brightness(1.1); }
+
+.secretBox { background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25); border-radius: 8px; padding: 1rem; }
+.secretBox p { margin: 0 0 .75rem; font-size: .85rem; }
+.secretBox code { display: block; background: #0a0e17; padding: .6rem; border-radius: 5px; font-size: .8rem; word-break: break-all; color: #38bdf8; margin-bottom: .75rem; }
