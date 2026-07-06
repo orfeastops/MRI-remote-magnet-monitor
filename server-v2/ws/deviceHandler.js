@@ -40,8 +40,8 @@ function handleDeviceMessage(msg, ctx) {
     if (pins['35'] === 1 || pins[35] === 1) {
       createAlert(deviceRow, 'quench', 'QUENCH DETECTED — magnet ramping down!');
     }
-    // Alarm pin 32
-    if (pins['32'] === 1 || pins[32] === 1) {
+    // Alarm pin 32 — INPUT_PULLUP, LOW (0) = active
+    if (pins['32'] === 0 || pins[32] === 0) {
       createAlert(deviceRow, 'alarm_32', 'Alarm pin 32 active');
     }
     // Alarm pin 34
