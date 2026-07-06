@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MRI Magnet Monitor</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+  <link rel="stylesheet" href="style.css?v=4">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>🧲 MRI Monitor</h1>
+      <span id="conn-status" class="badge offline">Connecting...</span>
+      <a href="/logout" id="logout-btn">Αποσύνδεση</a>
+    </header>
+
+    <div id="view-devices">
+      <h2>Μαγνήτες</h2>
+      <div id="devices"></div>
+    </div>
+
+    <div id="view-magnet" style="display:none">
+      <div class="topbar">
+        <button id="back-btn">← Πίσω</button>
+        <h2 id="magnet-title"></h2>
+        <span id="magnet-online" class="badge"></span>
+        <button class="menu-btn" id="menu-btn">⋮</button>
+        <div id="menu-dropdown" class="menu-dropdown" style="display:none">
+          <button id="rename-btn">✏️ Μετονομασία</button>
+        </div>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-tab="terminal">🖥️ Terminal</button>
+        <button class="tab" data-tab="dashboard">📊 Dashboard</button>
+      </div>
+      <div id="tab-terminal" class="tabcontent">
+        <div class="quick-btns">
+          <button class="qbtn esc-btn" onclick="sendCmd('\x1B')">ESC</button>
+          <button class="qbtn" onclick="sendCmd('R\r')">R — Run</button>
+          <button class="qbtn" onclick="sendCmd('VH\r')">VH — Helium</button>
+          <button class="qbtn" onclick="sendCmd('VL\r')">VL — Faults</button>
+          <button class="qbtn" onclick="sendCmd('VE\r')">VE — Events</button>
+          <button class="qbtn" onclick="sendCmd('VC\r')">VC — Cold Head</button>
+        </div>
+        <div id="terminal-container"></div>
+        <div class="terminal-input-bar">
+          <input id="manual-cmd" type="text" placeholder="Γράψε εντολή π.χ. R, VH, VL...">
+          <button id="manual-send">↵ Αποστολή</button>
+          <button id="save-btn">💾</button>
+        </div>
+      </div>
+      <div id="tab-dashboard" class="tabcontent" style="display:none">
+        <button class="refresh-btn" onclick="sendCmd('R\r')">↻ Ανανέωση (R)</button>
+        <div id="parsed-grid"></div>
+        <div id="faults-box"></div>
+      </div>
+    </div>
+
+    <div id="modal-rename" style="display:none">
+      <div class="modal-box">
+        <h3>✏️ Μετονομασία</h3>
+        <input id="rename-input" type="text" placeholder="Νέο όνομα..." maxlength="40">
+        <div class="modal-btns">
+          <button id="rename-cancel" class="btn-later">Άκυρο</button>
+          <button id="rename-save" class="btn-save">✓ Αποθήκευση</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-new-device" style="display:none">
+      <div class="modal-box">
+        <div class="modal-icon">🆕</div>
+        <h3>Νέα συσκευή συνδέθηκε!</h3>
+        <p class="modal-sub">Δώσε ένα όνομα για να την αναγνωρίζεις</p>
+        <p id="modal-mac"></p>
+        <input id="modal-name" type="text" placeholder="π.χ. Μαγνήτης Κέρκυρα" maxlength="40">
+        <div class="modal-btns">
+          <button id="modal-later" class="btn-later">Αργότερα</button>
+          <button id="modal-save" class="btn-save">✓ Αποθήκευση</button>
+        </div>
+        <p id="modal-queue-info" class="modal-queue"></p>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+  <script src="app.js?v=4"></script>
+</body>
+</html>
