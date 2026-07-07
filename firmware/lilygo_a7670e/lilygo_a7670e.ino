@@ -12,6 +12,11 @@
  *   Browser opens automatically (captive portal) — or go to 192.168.4.1.
  *   Fill in WiFi SSID, password, device secret → Save → device reboots.
  *
+ *   Fallback: if the stored WiFi cannot be reached (at boot, or down for
+ *   3 min at runtime — e.g. device moved to a new site), the same hotspot
+ *   opens again (AP+STA) while the stored network keeps being retried.
+ *   Device secret is optional when re-provisioning — leave blank to keep.
+ *
  * Hardware:
  *   UART0  GPIO3 RX / GPIO1 TX  — RS-232 from MRI @ 9600 baud
  *   UART1  GPIO27 RX / GPIO26 TX — A7670E AT commands @ 115200 baud
@@ -64,6 +69,8 @@ static const IPAddress AP_SUBNET(255, 255, 255, 0);
 #define WS_RECONNECT_MS    5000
 #define CONFIG_INTERVAL_MS 300000
 #define GPIO_DEBOUNCE_MS   50
+#define WIFI_FALLBACK_AP_MS   180000   // WiFi down this long → reopen hotspot
+#define FALLBACK_RETRY_MS     30000    // stored-WiFi retry while hotspot open
 
 // ── Global objects ────────────────────────────────────────────────────────────
 HardwareSerial modemSerial(1);
@@ -84,6 +91,9 @@ char cfgServerHost[64]     = "magnets.karnagio.org";
 bool  provisioningMode = false;
 bool  wsConnected      = false;
 bool  wsStarted        = false;
+bool  fallbackAP       = false;
+unsigned long wifiDownSinceMs    = 0;
+unsigned long lastFallbackRetryMs = 0;
 bool  modemReady       = false;
 bool  modemSmsSent     = false;
 
@@ -143,7 +153,7 @@ button:hover{background:#c73652}
     <label>Κωδικός WiFi</label>
     <input name='pass' type='password' placeholder='κωδικός δικτύου' autocomplete='off'>
     <label>Device Secret</label>
-    <input name='secret' type='text' placeholder='xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' required autocomplete='off'>
+    <input name='secret' type='text' placeholder='κενό = κρατάει το υπάρχον' autocomplete='off'>
     <button type='submit'>&#x1F4BE; Αποθήκευση &amp; Επανεκκίνηση</button>
   </form>
   <p class='note'>Μετά την αποθήκευση η συσκευή επανεκκινεί<br>και συνδέεται αυτόματα στο WiFi σου.</p>
@@ -192,15 +202,16 @@ void handleSave() {
   String pass   = apServer.arg("pass");
   String secret = apServer.arg("secret");
 
-  if (ssid.length() == 0 || secret.length() == 0) {
+  // Secret may be left blank when re-provisioning — keep the stored one
+  if (ssid.length() == 0 || (secret.length() == 0 && strlen(cfgDeviceSecret) == 0)) {
     apServer.send(400, "text/plain", "SSID and Secret are required.");
     return;
   }
 
   prefs.begin("mri", false);
-  prefs.putString("ssid",    ssid);
-  prefs.putString("wpass",   pass);
-  prefs.putString("dsecret", secret);
+  prefs.putString("ssid",  ssid);
+  prefs.putString("wpass", pass);
+  if (secret.length() > 0) prefs.putString("dsecret", secret);
   prefs.end();
 
   LOG("[AP] Config saved — SSID='%s' Secret='%s'\n", ssid.c_str(), secret.c_str());
@@ -217,10 +228,12 @@ void handleCaptiveRedirect() {
 }
 
 // ── Start WiFi AP provisioning ────────────────────────────────────────────────
-void startAPProvisioning() {
-  LOG("[AP] Starting provisioning hotspot '%s'\n", AP_SSID);
+// keepSTA=true opens the hotspot alongside the station interface so the
+// stored network keeps being retried (fallback re-provisioning).
+void startAPProvisioning(bool keepSTA) {
+  LOG("[AP] Starting provisioning hotspot '%s'%s\n", AP_SSID, keepSTA ? " (fallback)" : "");
 
-  WiFi.mode(WIFI_AP);
+  WiFi.mode(keepSTA ? WIFI_AP_STA : WIFI_AP);
   WiFi.softAPConfig(AP_IP, AP_IP, AP_SUBNET);
   WiFi.softAP(AP_SSID, AP_PASS);
 
@@ -229,12 +242,31 @@ void startAPProvisioning() {
   // DNS: redirect all domains to our IP (captive portal)
   dnsServer.start(53, "*", AP_IP);
 
-  apServer.on("/",        HTTP_GET,  handleSetupForm);
-  apServer.on("/save",    HTTP_POST, handleSave);
-  apServer.onNotFound(handleCaptiveRedirect);
+  static bool handlersSet = false;
+  if (!handlersSet) {
+    handlersSet = true;
+    apServer.on("/",        HTTP_GET,  handleSetupForm);
+    apServer.on("/save",    HTTP_POST, handleSave);
+    apServer.onNotFound(handleCaptiveRedirect);
+  }
   apServer.begin();
 
   LOG("[AP] Web server started — connect to '%s' and open browser\n", AP_SSID);
+}
+
+void startFallbackAP() {
+  fallbackAP = true;
+  lastFallbackRetryMs = millis();
+  startAPProvisioning(true);
+}
+
+void stopFallbackAP() {
+  LOG("[AP] Stored WiFi reachable again — closing fallback hotspot\n");
+  fallbackAP = false;
+  wifiDownSinceMs = 0;
+  dnsServer.stop();
+  apServer.stop();
+  WiFi.mode(WIFI_STA);
 }
 
 // ── NVS helpers ───────────────────────────────────────────────────────────────
@@ -532,7 +564,7 @@ void setup() {
   if (strlen(cfgSSID) == 0 || strlen(cfgDeviceSecret) == 0) {
     LOG("[BOOT] No config — starting WiFi AP provisioning\n");
     provisioningMode = true;
-    startAPProvisioning();
+    startAPProvisioning(false);
     return;
   }
 
@@ -555,6 +587,9 @@ void setup() {
     downloadConfig();
     lastConfigMs = millis();
     connectWS();
+  } else {
+    // Stored WiFi unreachable — device probably moved to a new site
+    startFallbackAP();
   }
 }
 
@@ -572,8 +607,27 @@ void loop() {
 
   if (wsStarted) ws.loop();  // library handles reconnect internally
 
-  if (WiFi.status() != WL_CONNECTED && now - lastWifiMs >= WIFI_RECONNECT_MS) {
-    lastWifiMs = now; wsConnected = false; connectWiFi();
+  if (fallbackAP) {
+    // Hotspot open for re-provisioning; keep retrying the stored network
+    dnsServer.processNextRequest();
+    apServer.handleClient();
+    if (WiFi.status() == WL_CONNECTED) {
+      stopFallbackAP();
+      downloadConfig();
+      lastConfigMs = now;
+    } else if (now - lastFallbackRetryMs >= FALLBACK_RETRY_MS) {
+      lastFallbackRetryMs = now;
+      WiFi.begin(cfgSSID, cfgWifiPass);  // non-blocking, keeps portal responsive
+    }
+  } else if (WiFi.status() != WL_CONNECTED) {
+    if (wifiDownSinceMs == 0) wifiDownSinceMs = now;
+    if (now - wifiDownSinceMs >= WIFI_FALLBACK_AP_MS) {
+      startFallbackAP();
+    } else if (now - lastWifiMs >= WIFI_RECONNECT_MS) {
+      lastWifiMs = now; wsConnected = false; connectWiFi();
+    }
+  } else {
+    wifiDownSinceMs = 0;
   }
 
   if (!wsStarted && WiFi.status() == WL_CONNECTED) connectWS();
