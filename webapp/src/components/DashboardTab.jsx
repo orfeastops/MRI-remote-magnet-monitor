@@ -3,7 +3,7 @@ import styles from './DashboardTab.module.css';
 // Parse VT100 cursor-position sequences: ESC[row;colH followed by text
 function parseVT100Screen(raw) {
   const screen = {};
-  const re = /(?:\x1b)?\[(\d+);(\d+)H([^\[\x1b]*)/g;
+  const re = /(?:\x1b)?\[(\d+);(\d+)H([^\x1b[]*)/g;
   let m;
   while ((m = re.exec(raw)) !== null) {
     const val = m[3].replace(/\x1b?\[\d*[a-zA-Z]/g, '').trim();
@@ -57,10 +57,11 @@ export default function DashboardTab({ rawBuffer }) {
   const erduVal = (erduRaw.match(/([\d.]+)/) || [])[1] || '';
 
   const resolved = FIELDS.map(f => {
-    let val = '';
-    if (f.pos === 'fc')   val = fcVal;
-    else if (f.pos === 'erdu') val = erduVal;
-    else val = screen[f.pos] || '';
+    const val = f.pos === 'fc'
+      ? fcVal
+      : f.pos === 'erdu'
+        ? erduVal
+        : screen[f.pos] || '';
     return { ...f, val };
   }).filter(f => f.val);
 

@@ -1,16 +1,16 @@
 # Updated Cloudflare Tunnel config
-# Routes magnets.karnagio.org through Nginx (port 80/443)
+# Routes monitor.example.com through Nginx (port 80/443)
 # Nginx then proxies /ws + /api/v2/ → port 3002, everything else → port 3001
 #
 # Copy to: /home/linux/.cloudflared/mri-monitor.yml
 # Then restart: pm2 restart mri-cloudflare
 
-tunnel: c4f2768d-ca16-4827-8a78-91c26a699ef9
-credentials-file: /home/linux/.cloudflared/c4f2768d-ca16-4827-8a78-91c26a699ef9.json
+tunnel: REPLACE_WITH_TUNNEL_ID
+credentials-file: /home/linux/.cloudflared/REPLACE_WITH_TUNNEL_ID.json
 protocol: http2
 
 ingress:
-  - hostname: magnets.karnagio.org
+  - hostname: monitor.example.com
     service: https://localhost:443
     originRequest:
       noTLSVerify: false

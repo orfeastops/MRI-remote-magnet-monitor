@@ -3,7 +3,7 @@
 #include <ArduinoJson.h>
 
 // ========== ΡΥΘΜΙΣΕΙΣ ==========
-const char* wsHost = "magnets.karnagio.org";
+const char* wsHost = "monitor.example.com";
 const int   wsPort = 443;
 
 struct WiFiNetwork { const char* ssid; const char* password; };

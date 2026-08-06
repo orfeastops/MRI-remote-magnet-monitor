@@ -16,10 +16,8 @@ export default function DeviceDetail() {
   const [device, setDevice]    = useState(null);
   const [tab, setTab]          = useState(0);
   const [gpioState, setGPIO]   = useState({});
-  const [wsOnline, setWsOnline] = useState(false);
 
   // xterm writes raw VT100 chunks; Dashboard keeps a rolling buffer
-  const rawChunkRef   = useRef(null);   // latest chunk → writes to xterm
   const rawBufferRef  = useRef('');     // accumulates all data → used by Dashboard
   const [rawChunk, setRawChunk]       = useState(null);
   const [dashBuffer, setDashBuffer]   = useState('');
@@ -63,7 +61,6 @@ export default function DeviceDetail() {
   }, [id]);
 
   const { online, watch } = useWebSocket(onMsg);
-  useEffect(() => { setWsOnline(online); }, [online]);
   useEffect(() => { if (id) watch(parseInt(id)); }, [id, watch]);
 
   if (!device) return <div className={styles.center}><span className="spinner" /></div>;
@@ -79,7 +76,7 @@ export default function DeviceDetail() {
             {device.online ? '● Online' : '○ Offline'}
           </span>
         </div>
-        <span className={`${styles.wsIndicator} ${wsOnline ? styles.wsOn : ''}`} title="WebSocket">WS</span>
+        <span className={`${styles.wsIndicator} ${online ? styles.wsOn : ''}`} title="WebSocket">WS</span>
       </div>
 
       {/* GPIO bar — always visible */}

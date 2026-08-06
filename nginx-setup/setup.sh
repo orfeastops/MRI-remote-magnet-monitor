@@ -1,14 +1,14 @@
-#!/bin/bash
-# Complete Nginx + SSL setup for magnets.karnagio.org
+﻿#!/bin/bash
+# Complete Nginx + SSL setup for monitor.example.com
 # Run as root: sudo bash nginx-setup/setup.sh
 #
 # Prerequisites:
 #   1. Edit nginx-setup/cloudflare-credentials.ini with your CF API token
-#      (dash.cloudflare.com → API Tokens → Create Token → "Edit zone DNS"
-#       restricted to zone: karnagio.org)
+#      (dash.cloudflare.com β†’ API Tokens β†’ Create Token β†’ "Edit zone DNS"
+#       restricted to zone: example.com)
 set -e
 
-DOMAIN="magnets.karnagio.org"
+DOMAIN="monitor.example.com"
 CF_CREDS="/etc/cloudflare-credentials.ini"
 PROJ_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -31,7 +31,7 @@ ln -sf "/etc/nginx/sites-available/$DOMAIN" /etc/nginx/sites-enabled/
 nginx -t
 systemctl enable nginx
 systemctl restart nginx
-echo "Nginx serving HTTP temporarily — v1 still live via tunnel"
+echo "Nginx serving HTTP temporarily β€” v1 still live via tunnel"
 
 echo "=== [4/7] Obtain Let's Encrypt certificate (DNS challenge, no port 80 needed) ==="
 certbot certonly \
@@ -41,10 +41,10 @@ certbot certonly \
     -d "$DOMAIN" \
     --non-interactive \
     --agree-tos \
-    -m admin@karnagio.org
+    -m admin@example.com
 
 echo "=== [5/7] Install full SSL Nginx config ==="
-cp "$PROJ_DIR/nginx-setup/magnets.karnagio.org.conf" "/etc/nginx/sites-available/$DOMAIN"
+cp "$PROJ_DIR/nginx-setup/monitor.example.com.conf" "/etc/nginx/sites-available/$DOMAIN"
 nginx -t
 systemctl reload nginx
 echo "Nginx now serving HTTPS on 443 with Let's Encrypt cert"

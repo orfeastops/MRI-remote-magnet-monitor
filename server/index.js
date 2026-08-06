@@ -12,6 +12,9 @@ const db = require('./db');
 // ========== AUTH ==========
 const APP_PASSWORD = process.env.APP_PASSWORD;
 const REMEMBER_ME_DAYS = 30;
+if (!APP_PASSWORD || !process.env.SESSION_SECRET) {
+  throw new Error('APP_PASSWORD and SESSION_SECRET are required');
+}
 // ==========================
 
 const app = express();
