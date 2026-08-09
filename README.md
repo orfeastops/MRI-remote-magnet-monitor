@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/orfeastops/MRI-remote-magnet-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/orfeastops/MRI-remote-magnet-monitor/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 An end-to-end engineering prototype for remotely observing MRI magnet-support telemetry and alarm signals. The system combines embedded hardware, real-time communications, a self-hosted backend, and an installable web dashboard to help authorized technical staff assess equipment status without continuous physical presence near the scanner room.
 
 > **Portfolio scope:** environment-specific credentials, network identifiers, and deployment archives are intentionally excluded or replaced with placeholders. See [SECURITY.md](SECURITY.md) for deployment boundaries.
