@@ -38,3 +38,10 @@
 .secretBox { background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25); border-radius: 8px; padding: 1rem; }
 .secretBox p { margin: 0 0 .75rem; font-size: .85rem; }
 .secretBox code { display: block; background: #0a0e17; padding: .6rem; border-radius: 5px; font-size: .8rem; word-break: break-all; color: #38bdf8; margin-bottom: .75rem; }
+.readOnlyNote { color: #888; font-size: 0.9em; margin-bottom: 1em; }
+.muted { color: #999; font-style: italic; }
+.clickableRow { cursor: pointer; }
+.clickableRow:hover { background: rgba(255,255,255,0.03); }
+.backBtn { background: none; border: none; color: #888; cursor: pointer; margin-bottom: 0.5em; padding: 0; }
+.checkList { display: flex; flex-direction: column; gap: 0.4em; margin: 0.5em 0; }
+.checkItem { display: flex; align-items: center; gap: 0.5em; font-weight: normal; }
