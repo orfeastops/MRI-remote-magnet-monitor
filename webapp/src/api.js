@@ -1,5 +1,7 @@
+const AZURE_BACKEND = 'https://remotemrimonitor-gvfwc9fccxbgh6an.australiaeast-01.azurewebsites.net';
+
 const BASE = import.meta.env.PROD
-  ? 'https://hetzner.karnagio.org'
+  ? (import.meta.env.VITE_API_URL || AZURE_BACKEND)
   : '';   // dev proxy handles it
 
 async function req(method, path, body) {
