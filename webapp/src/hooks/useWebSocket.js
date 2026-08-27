@@ -1,7 +1,9 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 
+const AZURE_BACKEND_WS = 'wss://remotemrimonitor-gvfwc9fccxbgh6an.australiaeast-01.azurewebsites.net/ws';
+
 const WS_URL = import.meta.env.PROD
-  ? 'wss://hetzner.karnagio.org/ws'
+  ? (import.meta.env.VITE_WS_URL || AZURE_BACKEND_WS)
   : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
 
 export function useWebSocket(onMessage) {
