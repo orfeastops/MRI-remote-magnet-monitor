@@ -49,7 +49,7 @@ async function issueTokens(res, payload) {
   const hash    = hashToken(refresh);
   const expiresAt = new Date(Date.now() + REFRESH_TTL_MS).toISOString();
 
-  db.refreshTokens.save(payload.userId || null, payload.role === 'super_admin' ? 1 : 0, hash, expiresAt);
+  await db.refreshTokens.save(payload.userId || null, payload.role === 'super_admin' ? 1 : 0, hash, expiresAt);
 
   const cookieOpts = { httpOnly: true, sameSite: 'lax', path: '/' };
   res.cookie('access_token',  access,  { ...cookieOpts, maxAge: 15 * 60 * 1000 });
