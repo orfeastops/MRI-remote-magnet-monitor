@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import styles from './AdminPanel.module.css';
 
@@ -22,6 +23,7 @@ export default function SuperAdmin() {
   const [targetCompany, setTarget] = useState(null);
   const [form, setForm]           = useState({});
   const [err, setErr]             = useState('');
+  const nav = useNavigate();
 
   const load = () => api.companies().then(setCompanies).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -60,15 +62,18 @@ export default function SuperAdmin() {
         <thead><tr><th>Company</th><th>Created</th><th></th></tr></thead>
         <tbody>
           {companies.map(c => (
-            <tr key={c.id}>
+            <tr key={c.id} className={styles.clickableRow} onClick={() => nav(`/super/companies/${c.id}`)}>
               <td>{c.name}</td>
               <td>{new Date(c.created_at).toLocaleDateString()}</td>
-              <td>
+              <td onClick={e => e.stopPropagation()}>
                 <button className={styles.iconBtn} onClick={() => openAdmin(c)} title="Add admin">+ Admin</button>
                 <button className={styles.iconBtn} onClick={() => del(c.id)} title="Delete">✕</button>
               </td>
             </tr>
           ))}
+          {companies.length === 0 && (
+            <tr><td colSpan={3} className={styles.muted}>No companies yet.</td></tr>
+          )}
         </tbody>
       </table>
 
