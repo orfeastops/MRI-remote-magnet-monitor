@@ -75,5 +75,10 @@ db.ensureSchema()
   })
   .catch(err => {
     console.error('[STARTUP] Failed to initialize database:', err.message);
+    if (err.originalError) console.error('[STARTUP] originalError:', err.originalError.message || err.originalError);
+    if (err.precedingErrors) {
+      err.precedingErrors.forEach((e, i) => console.error(`[STARTUP] precedingError[${i}]:`, e.message));
+    }
+    console.error('[STARTUP] Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
     process.exit(1);
   });
