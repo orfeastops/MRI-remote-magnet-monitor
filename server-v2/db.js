@@ -1,5 +1,3 @@
-const sql = require('mssql');
-
 const config = {
   server: process.env.DB_SERVER,
   database: process.env.DB_NAME,
@@ -9,6 +7,8 @@ const config = {
     encrypt: true,               // required for Azure SQL
     trustServerCertificate: false,
   },
+  connectionTimeout: 45000,
+  requestTimeout: 45000,
   pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
 };
 
