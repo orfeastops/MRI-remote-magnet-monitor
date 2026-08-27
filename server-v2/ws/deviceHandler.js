@@ -70,15 +70,19 @@ async function handleDeviceMessage(msg, ctx) {
 async function createAlert(deviceRow, type, message) {
   if (await db.alerts.hasOpenByType(deviceRow.id, type)) return; // deduplicate
   await db.alerts.create(deviceRow.id, type, message);
-  await sendPushToCompany(deviceRow, type, message);
+  await sendPushToAssignedTechnicians(deviceRow, type, message);
   console.log(`[ALERT] Device ${deviceRow.id} (${deviceRow.name}): ${message}`);
 }
 
-async function sendPushToCompany(deviceRow, alertType, message) {
-  // Get all users in the same company
-  const companyUsers = await db.users.getByCompany(deviceRow.company_id);
-  const userIds = companyUsers.map(u => u.id);
-  if (!userIds.length) return;
+// Notifies only the technicians assigned to this specific device —
+// managers are read-only and see alerts in the dashboard instead of via push.
+async function sendPushToAssignedTechnicians(deviceRow, alertType, message) {
+  const technicians = await db.deviceTechnicians.getForDevice(deviceRow.id);
+  const userIds = technicians.map(t => t.id);
+  if (!userIds.length) {
+    console.log(`[ALERT] No technicians assigned to device ${deviceRow.id} — no push sent`);
+    return;
+  }
 
   const subs = await db.pushSubs.forUsers(userIds);
   if (!subs.length) return;
