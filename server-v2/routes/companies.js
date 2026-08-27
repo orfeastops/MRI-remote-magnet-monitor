@@ -9,8 +9,8 @@ const { getOnlineDeviceIds } = require('../ws/hub');
 // ── Users ────────────────────────────────────────────────────────────────────
 
 // GET /api/company/users
-router.get('/users', (req, res) => {
-  res.json(db.users.getByCompany(req.user.companyId));
+router.get('/users', async (req, res) => {
+  res.json(await db.users.getByCompany(req.user.companyId));
 });
 
 // POST /api/company/users   body: { email, password, name?, role? }
@@ -22,10 +22,10 @@ router.post('/users', requireCompanyAdmin, async (req, res) => {
 
   const hash = await hashPassword(password);
   try {
-    const result = db.users.create(req.user.companyId, email.trim().toLowerCase(), hash, role, name || null);
+    const result = await db.users.create(req.user.companyId, email.trim().toLowerCase(), hash, role, name || null);
     res.status(201).json({ id: result.lastInsertRowid, email, role, name: name || null });
   } catch (e) {
-    if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'Email already exists' });
+    if (e.message.includes('UNIQUE') || e.message.includes('duplicate')) return res.status(409).json({ error: 'Email already exists' });
     throw e;
   }
 });
@@ -44,25 +44,25 @@ router.put('/users/:id', requireCompanyAdmin, async (req, res) => {
   }
   if (password !== undefined) fields.password_hash = await hashPassword(password);
   if (!Object.keys(fields).length) return res.status(400).json({ error: 'Nothing to update' });
-  db.users.update(req.params.id, req.user.companyId, fields);
+  await db.users.update(req.params.id, req.user.companyId, fields);
   res.json({ ok: true });
 });
 
 // DELETE /api/company/users/:id
-router.delete('/users/:id', requireCompanyAdmin, (req, res) => {
+router.delete('/users/:id', requireCompanyAdmin, async (req, res) => {
   if (String(req.params.id) === String(req.user.userId)) {
     return res.status(400).json({ error: 'Cannot delete yourself' });
   }
-  db.users.delete(req.params.id, req.user.companyId);
+  await db.users.delete(req.params.id, req.user.companyId);
   res.json({ ok: true });
 });
 
 // ── Devices ──────────────────────────────────────────────────────────────────
 
 // GET /api/company/devices
-router.get('/devices', (req, res) => {
+router.get('/devices', async (req, res) => {
   const onlineIds = new Set(getOnlineDeviceIds());
-  const devs = db.devices.getByCompany(req.user.companyId).map(d => ({
+  const devs = (await db.devices.getByCompany(req.user.companyId)).map(d => ({
     ...d,
     sms_recipients: JSON.parse(d.sms_recipients || '[]'),
     online: onlineIds.has(d.id),
@@ -71,12 +71,12 @@ router.get('/devices', (req, res) => {
 });
 
 // POST /api/company/devices   body: { name, apn?, sms_recipients? }
-router.post('/devices', requireCompanyAdmin, (req, res) => {
+router.post('/devices', requireCompanyAdmin, async (req, res) => {
   const { name, apn = 'internet', sms_recipients = [] } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: 'name required' });
 
   const secret = uuidv4();
-  const result = db.devices.create(req.user.companyId, secret, name.trim(), apn, sms_recipients);
+  const result = await db.devices.create(req.user.companyId, secret, name.trim(), apn, sms_recipients);
   res.status(201).json({
     id: result.lastInsertRowid,
     secret,  // shown once — technician programs this into firmware
@@ -88,7 +88,7 @@ router.post('/devices', requireCompanyAdmin, (req, res) => {
 });
 
 // PUT /api/company/devices/:id   body: { name?, apn?, sms_recipients? }
-router.put('/devices/:id', requireCompanyAdmin, (req, res) => {
+router.put('/devices/:id', requireCompanyAdmin, async (req, res) => {
   const allowed = ['name', 'apn', 'sms_recipients'];
   const fields  = {};
   for (const k of allowed) {
@@ -97,45 +97,45 @@ router.put('/devices/:id', requireCompanyAdmin, (req, res) => {
     }
   }
   if (!Object.keys(fields).length) return res.status(400).json({ error: 'Nothing to update' });
-  db.devices.update(req.params.id, req.user.companyId, fields);
+  await db.devices.update(req.params.id, req.user.companyId, fields);
   res.json({ ok: true });
 });
 
 // DELETE /api/company/devices/:id
-router.delete('/devices/:id', requireCompanyAdmin, (req, res) => {
-  db.devices.delete(req.params.id, req.user.companyId);
+router.delete('/devices/:id', requireCompanyAdmin, async (req, res) => {
+  await db.devices.delete(req.params.id, req.user.companyId);
   res.json({ ok: true });
 });
 
 // GET /api/company/devices/:id/history
-router.get('/devices/:id/history', (req, res) => {
-  const dev = db.devices.getById(req.params.id);
+router.get('/devices/:id/history', async (req, res) => {
+  const dev = await db.devices.getById(req.params.id);
   if (!dev || dev.company_id !== req.user.companyId) return res.status(404).json({ error: 'Not found' });
   const limit = Math.min(parseInt(req.query.limit) || 100, 500);
-  res.json(db.dataLog.history(dev.id, limit));
+  res.json(await db.dataLog.history(dev.id, limit));
 });
 
 // GET /api/company/devices/:id/gpio
-router.get('/devices/:id/gpio', (req, res) => {
-  const dev = db.devices.getById(req.params.id);
+router.get('/devices/:id/gpio', async (req, res) => {
+  const dev = await db.devices.getById(req.params.id);
   if (!dev || dev.company_id !== req.user.companyId) return res.status(404).json({ error: 'Not found' });
-  res.json(db.gpio.latest(dev.id));
+  res.json(await db.gpio.latest(dev.id));
 });
 
 // GET /api/company/devices/:id/alerts
-router.get('/devices/:id/alerts', (req, res) => {
-  const dev = db.devices.getById(req.params.id);
+router.get('/devices/:id/alerts', async (req, res) => {
+  const dev = await db.devices.getById(req.params.id);
   if (!dev || dev.company_id !== req.user.companyId) return res.status(404).json({ error: 'Not found' });
-  res.json(db.alerts.getAll(dev.id));
+  res.json(await db.alerts.getAll(dev.id));
 });
 
 // POST /api/company/devices/:id/alerts/:alertId/acknowledge
-router.post('/devices/:id/alerts/:alertId/acknowledge', requireCompanyAdmin, (req, res) => {
-  const dev = db.devices.getById(req.params.id);
+router.post('/devices/:id/alerts/:alertId/acknowledge', requireCompanyAdmin, async (req, res) => {
+  const dev = await db.devices.getById(req.params.id);
   if (!dev || dev.company_id !== req.user.companyId) return res.status(404).json({ error: 'Device not found' });
-  const alert = db.alerts.getByIdWithCompany(req.params.alertId);
+  const alert = await db.alerts.getByIdWithCompany(req.params.alertId);
   if (!alert || alert.device_id !== dev.id) return res.status(404).json({ error: 'Alert not found' });
-  db.alerts.resolve(alert.id, alert.device_id);
+  await db.alerts.resolve(alert.id, alert.device_id);
   res.json({ ok: true });
 });
 
