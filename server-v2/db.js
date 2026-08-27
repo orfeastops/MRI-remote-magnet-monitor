@@ -91,7 +91,7 @@ async function ensureSchema() {
     CREATE TABLE push_subscriptions (
       id         INT IDENTITY(1,1) PRIMARY KEY,
       user_id    INT NOT NULL REFERENCES users(id),
-      endpoint   NVARCHAR(MAX) NOT NULL,
+      endpoint   NVARCHAR(400) NOT NULL,
       keys       NVARCHAR(MAX) NOT NULL,
       created_at DATETIME2 DEFAULT SYSUTCDATETIME(),
       CONSTRAINT UQ_push_user_endpoint UNIQUE(user_id, endpoint)
