@@ -69,24 +69,24 @@ function setupHub(server) {
   }, 10000);
   wss.on('close', () => clearInterval(pingInterval));
 
-  wss.on('connection', (ws, req) => {
+  wss.on('connection', async (ws, req) => {
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
 
     // ── Try device auth first (secret in query param) ──
     const secret = extractDeviceSecret(req);
     if (secret) {
-      const deviceRow = db.devices.getBySecret(secret);
+      const deviceRow = await db.devices.getBySecret(secret);
       if (!deviceRow) {
         ws.close(4001, 'Unknown device secret');
         return;
       }
 
       deviceConnections.set(deviceRow.id, ws);
-      db.devices.touchLastSeen(deviceRow.id);
+      await db.devices.touchLastSeen(deviceRow.id);
       console.log(`[HUB] Device online: ${deviceRow.id} (${deviceRow.name || 'unnamed'})`);
 
-      broadcastOnlineStatus(deviceRow.id, true);
+      await broadcastOnlineStatus(deviceRow.id, true);
 
       const deviceCtx = {
         deviceRow,
@@ -94,19 +94,19 @@ function setupHub(server) {
         sendToDevice,
       };
 
-      ws.on('message', (rawBuf) => {
+      ws.on('message', async (rawBuf) => {
         let msg;
         try {
           const raw = Buffer.isBuffer(rawBuf) ? rawBuf.toString('latin1') : rawBuf;
           msg = JSON.parse(raw);
         } catch { return; }
-        handleDeviceMessage(msg, deviceCtx);
+        await handleDeviceMessage(msg, deviceCtx);
       });
 
-      ws.on('close', () => {
+      ws.on('close', async () => {
         deviceConnections.delete(deviceRow.id);
         console.log(`[HUB] Device offline: ${deviceRow.id}`);
-        broadcastOnlineStatus(deviceRow.id, false);
+        await broadcastOnlineStatus(deviceRow.id, false);
       });
 
       return;
@@ -141,11 +141,11 @@ function setupHub(server) {
       sendToDevice,
     };
 
-    ws.on('message', (rawBuf) => {
+    ws.on('message', async (rawBuf) => {
       let msg;
       try { msg = JSON.parse(rawBuf.toString()); }
       catch { return; }
-      handleBrowserMessage(msg, browserCtx);
+      await handleBrowserMessage(msg, browserCtx);
     });
 
     ws.on('close', () => {
@@ -157,8 +157,8 @@ function setupHub(server) {
   return wss;
 }
 
-function broadcastOnlineStatus(deviceId, online) {
-  const dev = db.devices.getById(deviceId);
+async function broadcastOnlineStatus(deviceId, online) {
+  const dev = await db.devices.getById(deviceId);
   if (!dev) return;
 
   // Broadcast to all watchers of this device
