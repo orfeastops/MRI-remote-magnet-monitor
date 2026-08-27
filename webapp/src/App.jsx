@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
-import Layout       from './components/Layout';
-import Login        from './pages/Login';
-import DeviceList   from './pages/DeviceList';
-import DeviceDetail from './pages/DeviceDetail';
-import CompanyAdmin from './pages/CompanyAdmin';
-import SuperAdmin   from './pages/SuperAdmin';
+import Layout         from './components/Layout';
+import Login          from './pages/Login';
+import DeviceList     from './pages/DeviceList';
+import DeviceDetail   from './pages/DeviceDetail';
+import CompanyAdmin   from './pages/CompanyAdmin';
+import SuperAdmin     from './pages/SuperAdmin';
+import CompanyDetail  from './pages/CompanyDetail';
 
 function RequireAuth({ children, roles }) {
   const { user } = useAuth();
@@ -40,6 +41,11 @@ export default function App() {
             <Route path="/super" element={
               <RequireAuth roles={['super_admin']}>
                 <SuperAdmin />
+              </RequireAuth>
+            } />
+            <Route path="/super/companies/:id" element={
+              <RequireAuth roles={['super_admin']}>
+                <CompanyDetail />
               </RequireAuth>
             } />
           </Route>
