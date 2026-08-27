@@ -40,7 +40,7 @@ async function ensureSchema() {
     IF OBJECT_ID('users', 'U') IS NULL
     CREATE TABLE users (
       id            INT IDENTITY(1,1) PRIMARY KEY,
-      company_id    INT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      company_id    INT NOT NULL REFERENCES companies(id),
       email         NVARCHAR(255) UNIQUE NOT NULL,
       password_hash NVARCHAR(255) NOT NULL,
       role          NVARCHAR(50) NOT NULL CHECK(role IN ('company_admin','technician')),
@@ -51,7 +51,7 @@ async function ensureSchema() {
     IF OBJECT_ID('devices', 'U') IS NULL
     CREATE TABLE devices (
       id             INT IDENTITY(1,1) PRIMARY KEY,
-      company_id     INT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      company_id     INT NOT NULL REFERENCES companies(id),
       secret         NVARCHAR(255) UNIQUE NOT NULL,
       name           NVARCHAR(255),
       apn            NVARCHAR(255) DEFAULT 'internet',
@@ -63,7 +63,7 @@ async function ensureSchema() {
     IF OBJECT_ID('data_log', 'U') IS NULL
     CREATE TABLE data_log (
       id        INT IDENTITY(1,1) PRIMARY KEY,
-      device_id INT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+      device_id INT NOT NULL REFERENCES devices(id),
       raw       NVARCHAR(MAX) NOT NULL,
       ts        DATETIME2 DEFAULT SYSUTCDATETIME()
     );
@@ -71,7 +71,7 @@ async function ensureSchema() {
     IF OBJECT_ID('gpio_states', 'U') IS NULL
     CREATE TABLE gpio_states (
       id        INT IDENTITY(1,1) PRIMARY KEY,
-      device_id INT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+      device_id INT NOT NULL REFERENCES devices(id),
       pin       INT NOT NULL,
       state     INT NOT NULL,
       ts        DATETIME2 DEFAULT SYSUTCDATETIME()
@@ -80,7 +80,7 @@ async function ensureSchema() {
     IF OBJECT_ID('alerts', 'U') IS NULL
     CREATE TABLE alerts (
       id        INT IDENTITY(1,1) PRIMARY KEY,
-      device_id INT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+      device_id INT NOT NULL REFERENCES devices(id),
       type      NVARCHAR(100) NOT NULL,
       message   NVARCHAR(MAX) NOT NULL,
       resolved  INT DEFAULT 0,
@@ -90,7 +90,7 @@ async function ensureSchema() {
     IF OBJECT_ID('push_subscriptions', 'U') IS NULL
     CREATE TABLE push_subscriptions (
       id         INT IDENTITY(1,1) PRIMARY KEY,
-      user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id    INT NOT NULL REFERENCES users(id),
       endpoint   NVARCHAR(MAX) NOT NULL,
       keys       NVARCHAR(MAX) NOT NULL,
       created_at DATETIME2 DEFAULT SYSUTCDATETIME(),
@@ -139,7 +139,17 @@ const companies = {
   },
   delete: async (id) => {
     const pool = await getPool();
-    await pool.request().input('id', sql.Int, id).query('DELETE FROM companies WHERE id=@id');
+    // Manual cascade (schema has no ON DELETE CASCADE, to avoid SQL Server's
+    // multiple-cascade-paths restriction)
+    await pool.request().input('id', sql.Int, id).query(`
+      DELETE ps FROM push_subscriptions ps JOIN users u ON u.id=ps.user_id WHERE u.company_id=@id;
+      DELETE dl FROM data_log dl JOIN devices d ON d.id=dl.device_id WHERE d.company_id=@id;
+      DELETE g  FROM gpio_states g  JOIN devices d ON d.id=g.device_id  WHERE d.company_id=@id;
+      DELETE a  FROM alerts a       JOIN devices d ON d.id=a.device_id  WHERE d.company_id=@id;
+      DELETE FROM devices WHERE company_id=@id;
+      DELETE FROM users WHERE company_id=@id;
+      DELETE FROM companies WHERE id=@id;
+    `);
   },
 };
 
@@ -186,8 +196,10 @@ const users = {
   },
   delete: async (id, companyId) => {
     const pool = await getPool();
-    await pool.request().input('id', sql.Int, id).input('companyId', sql.Int, companyId)
-      .query('DELETE FROM users WHERE id=@id AND company_id=@companyId');
+    await pool.request().input('id', sql.Int, id).input('companyId', sql.Int, companyId).query(`
+      DELETE FROM push_subscriptions WHERE user_id=@id;
+      DELETE FROM users WHERE id=@id AND company_id=@companyId;
+    `);
   },
 };
 
@@ -239,8 +251,12 @@ const devices = {
   },
   delete: async (id, companyId) => {
     const pool = await getPool();
-    await pool.request().input('id', sql.Int, id).input('companyId', sql.Int, companyId)
-      .query('DELETE FROM devices WHERE id=@id AND company_id=@companyId');
+    await pool.request().input('id', sql.Int, id).input('companyId', sql.Int, companyId).query(`
+      DELETE FROM data_log WHERE device_id=@id;
+      DELETE FROM gpio_states WHERE device_id=@id;
+      DELETE FROM alerts WHERE device_id=@id;
+      DELETE FROM devices WHERE id=@id AND company_id=@companyId;
+    `);
   },
 };
 
