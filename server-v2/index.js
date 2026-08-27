@@ -17,7 +17,7 @@ const { setupHub } = require('./ws/hub');
 const db                 = require('./db');
 
 // ── Validate required ENV ─────────────────────────────────────────────────────
-const required = ['SUPERADMIN_EMAIL', 'SUPERADMIN_PASSWORD', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
+const required = ['SUPERADMIN_EMAIL', 'SUPERADMIN_PASSWORD', 'JWT_SECRET', 'JWT_REFRESH_SECRET', 'DB_SERVER', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
 for (const k of required) {
   if (!process.env[k]) { console.error(`Missing ENV: ${k}`); process.exit(1); }
 }
@@ -64,7 +64,16 @@ const server = http.createServer(app);
 setupHub(server);
 
 // ── Periodic cleanup ──────────────────────────────────────────────────────────
-setInterval(() => db.refreshTokens.purge(), 60 * 60 * 1000); // every hour
+setInterval(() => { db.refreshTokens.purge().catch(err => console.error('[PURGE]', err.message)); }, 60 * 60 * 1000); // every hour
 
 const PORT = process.env.PORT || 3002;
-server.listen(PORT, () => console.log(`MRI Monitor v2 running on http://localhost:${PORT}`));
+
+// ── Ensure DB schema exists, then start listening ─────────────────────────────
+db.ensureSchema()
+  .then(() => {
+    server.listen(PORT, () => console.log(`MRI Monitor v2 running on http://localhost:${PORT}`));
+  })
+  .catch(err => {
+    console.error('[STARTUP] Failed to initialize database:', err.message);
+    process.exit(1);
+  });
