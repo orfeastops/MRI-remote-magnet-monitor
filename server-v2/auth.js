@@ -1,63 +1,66 @@
-const router = require('express').Router();
-const db     = require('../db');
-const auth   = require('../auth');
+const jwt     = require('jsonwebtoken');
+const bcrypt  = require('bcrypt');
+const crypto  = require('crypto');
+const db      = require('./db');
 
-// POST /api/auth/login
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+const ACCESS_TTL  = '15m';
+const REFRESH_TTL = '30d';
+const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-  // Super-admin shortcut (no DB row)
-  if (auth.isSuperAdmin(email, password)) {
-    await auth.issueTokens(res, { role: 'super_admin', email });
-    return res.json({ role: 'super_admin', email });
-  }
+function isSuperAdmin(email, password) {
+  return (
+    email    === process.env.SUPERADMIN_EMAIL &&
+    password === process.env.SUPERADMIN_PASSWORD
+  );
+}
 
-  const user = await db.users.getByEmail(email);
-  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+function signAccess(payload) {
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: ACCESS_TTL });
+}
 
-  const ok = await auth.checkPassword(password, user.password_hash);
-  if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+function signRefresh(payload) {
+  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn: REFRESH_TTL });
+}
 
-  const payload = { userId: user.id, companyId: user.company_id, role: user.role, email: user.email };
-  await auth.issueTokens(res, payload);
-  res.json({ userId: user.id, companyId: user.company_id, role: user.role, email: user.email, name: user.name });
-});
+function verifyAccess(token) {
+  return jwt.verify(token, process.env.JWT_SECRET);
+}
 
-// POST /api/auth/logout
-router.post('/logout', async (req, res) => {
-  const token = req.cookies?.refresh_token;
-  if (token) {
-    const hash = auth.hashToken(token);
-    await db.refreshTokens.delete(hash);
-  }
-  auth.clearTokens(res);
-  res.json({ ok: true });
-});
+function verifyRefresh(token) {
+  return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+}
 
-// POST /api/auth/refresh
-router.post('/refresh', async (req, res) => {
-  const token = req.cookies?.refresh_token;
-  if (!token) return res.status(401).json({ error: 'No refresh token' });
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
-  let payload;
-  try { payload = auth.verifyRefresh(token); }
-  catch { return res.status(401).json({ error: 'Refresh token invalid or expired' }); }
+async function hashPassword(plain) {
+  return bcrypt.hash(plain, 12);
+}
 
-  const hash = auth.hashToken(token);
-  const row  = await db.refreshTokens.find(hash);
-  if (!row) return res.status(401).json({ error: 'Refresh token revoked' });
+async function checkPassword(plain, hash) {
+  return bcrypt.compare(plain, hash);
+}
 
-  // Rotate: delete old, issue new pair
-  await db.refreshTokens.delete(hash);
-  const { iat, exp, ...clean } = payload;
-  await auth.issueTokens(res, clean);
-  res.json({ ok: true });
-});
+async function issueTokens(res, payload) {
+  const access  = signAccess(payload);
+  const refresh = signRefresh(payload);
+  const hash    = hashToken(refresh);
+  const expiresAt = new Date(Date.now() + REFRESH_TTL_MS).toISOString();
 
-// GET /api/auth/me
-router.get('/me', require('../middleware/requireAuth'), (req, res) => {
-  res.json(req.user);
-});
+  await db.refreshTokens.save(payload.userId || null, payload.role === 'super_admin' ? 1 : 0, hash, expiresAt);
 
-module.exports = router;
+  const cookieOpts = { httpOnly: true, sameSite: 'none', secure: true, path: '/' };
+  res.cookie('access_token',  access,  { ...cookieOpts, maxAge: 15 * 60 * 1000 });
+  res.cookie('refresh_token', refresh, { ...cookieOpts, maxAge: REFRESH_TTL_MS });
+}
+
+function clearTokens(res) {
+  res.clearCookie('access_token',  { httpOnly: true, sameSite: 'none', secure: true, path: '/' });
+  res.clearCookie('refresh_token', { httpOnly: true, sameSite: 'none', secure: true, path: '/' });
+}
+
+module.exports = {
+  isSuperAdmin, signAccess, verifyAccess, verifyRefresh,
+  hashToken, hashPassword, checkPassword, issueTokens, clearTokens,
+};
