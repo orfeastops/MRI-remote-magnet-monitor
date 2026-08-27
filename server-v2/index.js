@@ -3,6 +3,7 @@ process.on('uncaughtException',  (err) => console.error('[UNCAUGHT]', err.messag
 process.on('unhandledRejection', (err) => console.error('[UNHANDLED]', err));
 
 const express    = require('express');
+const cors       = require('cors');
 const http       = require('http');
 const cookieParser = require('cookie-parser');
 const webpush    = require('web-push');
@@ -33,6 +34,12 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 
 // ── Express app ───────────────────────────────────────────────────────────────
 const app = express();
+// Reflects the request's Origin header so credentialed (cookie) requests work
+// from the Static Web App frontend, whatever its exact domain is.
+app.use(cors({
+  origin: (origin, callback) => callback(null, origin || true),
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
