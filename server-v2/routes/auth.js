@@ -13,7 +13,7 @@ router.post('/login', async (req, res) => {
     return res.json({ role: 'super_admin', email });
   }
 
-  const user = db.users.getByEmail(email);
+  const user = await db.users.getByEmail(email);
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
   const ok = await auth.checkPassword(password, user.password_hash);
@@ -25,18 +25,18 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /api/auth/logout
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   const token = req.cookies?.refresh_token;
   if (token) {
     const hash = auth.hashToken(token);
-    db.refreshTokens.delete(hash);
+    await db.refreshTokens.delete(hash);
   }
   auth.clearTokens(res);
   res.json({ ok: true });
 });
 
 // POST /api/auth/refresh
-router.post('/refresh', (req, res) => {
+router.post('/refresh', async (req, res) => {
   const token = req.cookies?.refresh_token;
   if (!token) return res.status(401).json({ error: 'No refresh token' });
 
@@ -45,13 +45,13 @@ router.post('/refresh', (req, res) => {
   catch { return res.status(401).json({ error: 'Refresh token invalid or expired' }); }
 
   const hash = auth.hashToken(token);
-  const row  = db.refreshTokens.find(hash);
+  const row  = await db.refreshTokens.find(hash);
   if (!row) return res.status(401).json({ error: 'Refresh token revoked' });
 
   // Rotate: delete old, issue new pair
-  db.refreshTokens.delete(hash);
+  await db.refreshTokens.delete(hash);
   const { iat, exp, ...clean } = payload;
-  auth.issueTokens(res, clean);
+  await auth.issueTokens(res, clean);
   res.json({ ok: true });
 });
 
