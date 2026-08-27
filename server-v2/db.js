@@ -108,6 +108,14 @@ async function ensureSchema() {
       created_at DATETIME2 DEFAULT SYSUTCDATETIME()
     );
 
+    IF OBJECT_ID('device_technicians', 'U') IS NULL
+    CREATE TABLE device_technicians (
+      device_id   INT NOT NULL REFERENCES devices(id),
+      user_id     INT NOT NULL REFERENCES users(id),
+      assigned_at DATETIME2 DEFAULT SYSUTCDATETIME(),
+      PRIMARY KEY (device_id, user_id)
+    );
+
     IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_data_log_device')
       CREATE INDEX idx_data_log_device ON data_log(device_id, ts DESC);
     IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_gpio_device')
@@ -143,6 +151,7 @@ const companies = {
     // Manual cascade (schema has no ON DELETE CASCADE, to avoid SQL Server's
     // multiple-cascade-paths restriction)
     await pool.request().input('id', sql.Int, id).query(`
+      DELETE dt FROM device_technicians dt JOIN devices d ON d.id=dt.device_id WHERE d.company_id=@id;
       DELETE ps FROM push_subscriptions ps JOIN users u ON u.id=ps.user_id WHERE u.company_id=@id;
       DELETE dl FROM data_log dl JOIN devices d ON d.id=dl.device_id WHERE d.company_id=@id;
       DELETE g  FROM gpio_states g  JOIN devices d ON d.id=g.device_id  WHERE d.company_id=@id;
@@ -198,6 +207,7 @@ const users = {
   delete: async (id, companyId) => {
     const pool = await getPool();
     await pool.request().input('id', sql.Int, id).input('companyId', sql.Int, companyId).query(`
+      DELETE FROM device_technicians WHERE user_id=@id;
       DELETE FROM push_subscriptions WHERE user_id=@id;
       DELETE FROM users WHERE id=@id AND company_id=@companyId;
     `);
@@ -253,6 +263,7 @@ const devices = {
   delete: async (id, companyId) => {
     const pool = await getPool();
     await pool.request().input('id', sql.Int, id).input('companyId', sql.Int, companyId).query(`
+      DELETE FROM device_technicians WHERE device_id=@id;
       DELETE FROM data_log WHERE device_id=@id;
       DELETE FROM gpio_states WHERE device_id=@id;
       DELETE FROM alerts WHERE device_id=@id;
@@ -384,4 +395,43 @@ const refreshTokens = {
   },
 };
 
-module.exports = { ensureSchema, companies, users, devices, dataLog, gpio, alerts, pushSubs, refreshTokens };
+// ── Device ↔ Technician assignments ─────────────────────────────────────────
+const deviceTechnicians = {
+  // Replaces the full assignment list for a device (used on device create/edit)
+  setForDevice: async (deviceId, technicianIds) => {
+    const pool = await getPool();
+    await pool.request().input('deviceId', sql.Int, deviceId)
+      .query('DELETE FROM device_technicians WHERE device_id=@deviceId');
+    if (!technicianIds || !technicianIds.length) return;
+    const request = pool.request().input('deviceId', sql.Int, deviceId);
+    const values = technicianIds.map((id, i) => {
+      request.input(`t${i}`, sql.Int, id);
+      return `(@deviceId, @t${i})`;
+    }).join(',');
+    await request.query(`INSERT INTO device_technicians (device_id, user_id) VALUES ${values}`);
+  },
+  getForDevice: async (deviceId) => {
+    const pool = await getPool();
+    const result = await pool.request().input('deviceId', sql.Int, deviceId).query(`
+      SELECT u.id, u.email, u.name FROM device_technicians dt
+      JOIN users u ON u.id = dt.user_id WHERE dt.device_id=@deviceId`);
+    return result.recordset;
+  },
+  getDeviceIdsForTechnician: async (userId) => {
+    const pool = await getPool();
+    const result = await pool.request().input('userId', sql.Int, userId)
+      .query('SELECT device_id FROM device_technicians WHERE user_id=@userId');
+    return result.recordset.map(r => r.device_id);
+  },
+  isAssigned: async (deviceId, userId) => {
+    const pool = await getPool();
+    const result = await pool.request().input('deviceId', sql.Int, deviceId).input('userId', sql.Int, userId)
+      .query('SELECT 1 FROM device_technicians WHERE device_id=@deviceId AND user_id=@userId');
+    return result.recordset.length > 0;
+  },
+};
+
+module.exports = {
+  ensureSchema, companies, users, devices, dataLog, gpio, alerts, pushSubs, refreshTokens,
+  deviceTechnicians,
+};
